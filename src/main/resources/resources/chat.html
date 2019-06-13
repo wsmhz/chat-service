@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>test</title>
+</head>
+<body>
+    <div>
+        <textarea id="contents" rows="20" cols="120" readonly></textarea>
+    </div>
+    <div class="send">
+
+        发送者：<input type="text" id="senderId" size="50">
+        接受者：<input type="text" id="receiverId" size="50">
+        <input type="button" id="init" value="建立连接">
+        <br>
+        内容：<input type="text" id="content" size="50">
+        <input type="button" id="send" value="发送">
+        <input type="file" id="file" name="file" />
+        <input type="button" id="upload" value="上传" />
+    </div>
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+
+        $(function() {
+            function uploadFile(){
+                var fileObj = document.getElementById("file").files[0]; // js 获取文件对象
+                var reader = new FileReader();
+                //将文件以Data URL形式读入页面
+                reader.readAsDataURL(fileObj);
+                reader.onload = function (e) {
+                    var base64Data = this.result.substring(this.result.indexOf(',')+1);
+                    console.log(base64Data);
+                    ws.send(base64Data);
+                }
+            }
+            // 将内容追加到指定的文本区
+            function appendContent($ta, message) {
+                var contents = $ta.val();
+                contents += '\n' + message;
+                $ta.val(contents);
+                $ta[0].scrollTop = $ta[0].scrollHeight;
+            }
+
+            // 通过WebSocket发送消息
+            function sendMessage() {
+                content = $('#content').val().trim();
+                if (content.length > 0) {
+                    message = {
+                        "action": 2,
+                        "msgContext": {
+                            "senderId": senderId,
+                            "receiverId": receiverId,
+                            "context": content
+                        }
+                    };
+                    ws.send(JSON.stringify(message));
+                    appendContent($('#contents'), '我说：' + content);
+                    $('#content').val('');
+                }
+            }
+
+            function keepalive() {
+                console.log("发送心跳");
+                message = {
+                    "action": 4
+                };
+                ws.send(JSON.stringify(message));
+            }
+
+            function findUnSignMsg() {
+                $.ajax({
+                    url:"/msg/unsign",
+                    data: JSON.stringify({
+                        "receiverId": senderId
+                    }),
+                    dataType:'json',
+                    type:'post',
+                    timeout:10000,//超时时间设置为10秒
+                    contentType:'application/json;charset=UTF-8',
+                    success: function (res) {
+                        if(res.status == 0){
+                            var data = res.data;
+                            console.log(data);
+                            if(data.signMsgIds.length > 0 && data.msgContexts.length > 0){
+                                message = {
+                                    "action": 3,
+                                    "signMsgIds": data.signMsgIds
+                                };
+                                ws.send(JSON.stringify(message));
+                                appendContent($('#contents'), "--以下为新消息--");
+                                data.msgContexts.forEach(msgContext => {
+                                    console.log(msgContext);
+                                    appendContent($('#contents'), msgContext.senderId + "说：" + msgContext.context);
+                                });
+                            }
+                        }
+                    },
+                    error: function (e){
+                        alert(e)
+                    }
+                });
+            }
+
+            function init() {
+                senderId = $('#senderId').val().trim();
+                receiverId = $('#receiverId').val().trim();
+                if (senderId.length <= 0 || receiverId.length <= 0) {
+                    alert("发送者或接收者为空");
+                    return;
+                }
+                // 创建WebSocket对象
+                ws= new WebSocket('ws://localhost:8888/ws');
+                // 连接建立后执行的回调函数
+                ws.onopen = function(evt) {
+                    message = {
+                        "action": 1,
+                        "msgContext": {
+                            "senderId": senderId,
+                            "receiverId": receiverId
+                        }
+                    };
+                    ws.send(JSON.stringify(message));
+                    console.log("建立连接");
+                    $('#contents').val('~~~已连接~~~~进入聊天室~~~');
+                    // 拉取未签收的消息
+                    findUnSignMsg();
+                    // 定时发送心跳
+                    setInterval(keepalive, 10000);
+                };
+                // 收到消息后执行的回调函数
+                ws.onmessage = function(e) {
+                    console.log("接受到消息：" + e.data);
+                    var dataContent = JSON.parse(e.data);
+                    var msgContext = dataContent.msgContext;
+                    console.log(msgContext.msgId);
+                    message = {
+                        "action": 3,
+                        "signMsgIds": [msgContext.msgId]
+                    };
+                    ws.send(JSON.stringify(message));
+                    appendContent($('#contents'), msgContext.senderId + "说：" + msgContext.context);
+                };
+                // 为发送按钮绑定点击事件回调函数
+                $('#send').on('click', sendMessage);
+                // 为文本框绑定按下回车事件回调函数
+                $('#content').on('keypress', function(evt) {
+                    keycode = evt.keyCode || evt.which;
+                    if (keycode == 13) {
+                        sendMessage();
+                    }
+                });
+            }
+            var ws = null;
+            var senderId = null;
+            var receiverId = null;
+            $('#init').on('click', init);
+            $('#upload').on('click', uploadFile);
+        });
+    </script>
+</body>
+</html>
