@@ -18,22 +18,53 @@
         <input type="button" id="send" value="发送">
         <input type="file" id="file" name="file" />
         <input type="button" id="upload" value="上传" />
+        <div id="imgs"></div>
     </div>
     <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
     <script>
 
         $(function() {
+
             function uploadFile(){
                 var fileObj = document.getElementById("file").files[0]; // js 获取文件对象
+                var fileName = document.getElementById("file").value;
+                var suffix = fileName.substring(fileName.lastIndexOf(".") + 1);
                 var reader = new FileReader();
-                //将文件以Data URL形式读入页面
-                reader.readAsDataURL(fileObj);
-                reader.onload = function (e) {
-                    var base64Data = this.result.substring(this.result.indexOf(',')+1);
-                    console.log(base64Data);
-                    ws.send(base64Data);
-                }
+                reader.readAsArrayBuffer(fileObj);
+                reader.onload = function(e){
+                    var extraData = JSON.stringify({
+                        "action": 2,
+                        "msgContext": {
+                            "senderId": senderId,
+                            "receiverId": receiverId,
+                            "context": suffix,
+                            "msgType": 2
+                        }
+                    });
+                    var extraDataBlob = new Blob([extraData],{type:"text/plain"});
+                    // 获取到文件对象
+                    var result = e.target.result;
+                    // 创建一个 4个 字节的数组缓冲区
+                    var arrayBuffer = new ArrayBuffer(4);
+                    var dataView = new DataView(arrayBuffer);
+                    // 从第0个字节开始，写一个 int 类型的数据(即为：该文本消息的长度，给后端)，占4个字节
+                    dataView.setInt32(0, extraData.length);
+                    // 组装成 blob 对象
+                    var blob = new Blob([arrayBuffer, extraDataBlob, result]);
+                    // 发送到 webSocket 服务器端
+                    ws.send(blob);
+                };
+                // 发送者显示图片
+                var reader222 = new FileReader();
+                reader222.readAsDataURL(fileObj);
+                reader222.onload = function(){
+                    var img = document.createElement("img");
+                    img.src = this.result;
+                    var d1=document.getElementById("imgs");
+                    d1.appendChild(img);
+                };
             }
+
             // 将内容追加到指定的文本区
             function appendContent($ta, message) {
                 var contents = $ta.val();
@@ -60,6 +91,7 @@
                 }
             }
 
+            // 心跳
             function keepalive() {
                 console.log("发送心跳");
                 message = {
@@ -68,6 +100,7 @@
                 ws.send(JSON.stringify(message));
             }
 
+            // 拉取未签收消息
             function findUnSignMsg() {
                 $.ajax({
                     url:"/msg/unsign",
@@ -90,8 +123,14 @@
                                 ws.send(JSON.stringify(message));
                                 appendContent($('#contents'), "--以下为新消息--");
                                 data.msgContexts.forEach(msgContext => {
-                                    console.log(msgContext);
-                                    appendContent($('#contents'), msgContext.senderId + "说：" + msgContext.context);
+                                    if(msgContext.msgType == 1){
+                                        appendContent($('#contents'), msgContext.senderId + "说：" + msgContext.context);
+                                    } else if(msgContext.msgType == 2){
+                                        var img = document.createElement("img");
+                                        img.src = msgContext.context;
+                                        var d1=document.getElementById("imgs");
+                                        d1.appendChild(img);
+                                    }
                                 });
                             }
                         }
@@ -133,13 +172,19 @@
                     console.log("接受到消息：" + e.data);
                     var dataContent = JSON.parse(e.data);
                     var msgContext = dataContent.msgContext;
-                    console.log(msgContext.msgId);
                     message = {
                         "action": 3,
                         "signMsgIds": [msgContext.msgId]
                     };
                     ws.send(JSON.stringify(message));
-                    appendContent($('#contents'), msgContext.senderId + "说：" + msgContext.context);
+                    if(msgContext.msgType == 1){
+                        appendContent($('#contents'), msgContext.senderId + "说：" + msgContext.context);
+                    } else if(msgContext.msgType == 2){
+                        var img = document.createElement("img");
+                        img.src = msgContext.context;
+                        var d1=document.getElementById("imgs");
+                        d1.appendChild(img);
+                    }
                 };
                 // 为发送按钮绑定点击事件回调函数
                 $('#send').on('click', sendMessage);

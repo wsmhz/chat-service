@@ -41,6 +41,10 @@ public class ChatMsg extends Domain {
     private String context;
     /**
      * 消息类型
+     *  1- 文本
+     *  2- 图片
+     *  3- 音频
+     *  4- 视频
      */
     private Integer msgType;
     /**
