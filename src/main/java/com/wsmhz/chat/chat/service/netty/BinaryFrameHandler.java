@@ -1,7 +1,6 @@
 package com.wsmhz.chat.chat.service.netty;
 
 import com.google.common.collect.Lists;
-import com.sun.org.apache.xml.internal.serializer.utils.Utils;
 import com.wsmhz.chat.chat.service.api.domain.form.ChatMsgForm;
 import com.wsmhz.chat.chat.service.service.ChatMsgService;
 import com.wsmhz.chat.chat.service.service.impl.ChatMsgServiceImpl;
@@ -42,8 +41,10 @@ public class BinaryFrameHandler extends SimpleChannelInboundHandler<BinaryWebSoc
 
         // 获取文本长度
         int extraMsgLength = content.readInt();
+        AssertUtil.requireNonNull(extraMsgLength, "消息文本长度不能为空");
         // 获取文本内容
         String extraMsg = content.readCharSequence(extraMsgLength, StandardCharsets.UTF_8).toString();
+        AssertUtil.requireNotBlank(extraMsg, "消息文本不能为空");
         log.info("携带消息文本长度：{}，内容：{}",extraMsgLength, extraMsg);
         ChatMsgForm chatMsgForm = JsonUtil.stringToObj(extraMsg, ChatMsgForm.class);
         ChatMsgForm.MsgContext msgContext = chatMsgForm.getMsgContext();

@@ -58,7 +58,7 @@ public class  TextFrameHandler extends SimpleChannelInboundHandler<TextWebSocket
                                     JsonUtil.objToString(chatMsgForm)));
                 }
                 break;
-            case SIGNED:
+            case SIGN:
                 // 签收
                 List<String> signMsgIds = chatMsgForm.getSignMsgIds();
                 if (CollectionUtils.isNotEmpty(signMsgIds)) {
