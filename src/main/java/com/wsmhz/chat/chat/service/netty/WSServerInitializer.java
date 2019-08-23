@@ -3,6 +3,7 @@ package com.wsmhz.chat.chat.service.netty;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -14,10 +15,10 @@ import io.netty.handler.timeout.IdleStateHandler;
  * Created By tangbj On 2019/6/12
  * Description: 初始化配置
  */
-public class WSServerInitializer extends ChannelInitializer<SocketChannel> {
+public class WSServerInitializer extends ChannelInitializer<NioSocketChannel> {
 
     @Override
-    protected void initChannel(SocketChannel ch) {
+    protected void initChannel(NioSocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
 
         // ************ http协议 ************

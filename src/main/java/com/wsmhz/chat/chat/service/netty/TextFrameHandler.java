@@ -49,6 +49,7 @@ public class  TextFrameHandler extends SimpleChannelInboundHandler<TextWebSocket
                 // 保存消息，并标记为未签收
                 ChatMsgForm.MsgContext msgContext = chatMsgForm.getMsgContext();
                 msgContext.setMsgId(UUID.randomUUID().toString());
+                // 异常，需要通过消息补偿机制等其他方式进行处理
                 AssertUtil.requireTrue(chatMsgService.saveMsg(msgContext) > 0, "保存消息到数据库异常");
                 // 发送给接收者
                 Channel receiverChannel = NettyUtil.validateChannel(msgContext.getReceiverId());
